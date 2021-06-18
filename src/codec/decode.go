@@ -39,7 +39,11 @@ func init() {
 	fixed64Types[FieldType_DOUBLE] = true
 }
 
-func (cb *Buffer) decodeVarintSlow() (x uint64, err error) {
+// DecodeVarint reads a varint-encoded integer from the Buffer.
+// This is the format for the
+// int32, int64, uint32, uint64, bool, and enum
+// protocol buffer types.
+func (cb *Buffer) DecodeVarint() (x uint64, err error) {
 	i := cb.index
 	l := len(cb.buf)
 
@@ -60,107 +64,6 @@ func (cb *Buffer) decodeVarintSlow() (x uint64, err error) {
 	// The number is too large to represent in a 64-bit value.
 	err = ErrOverflow
 	return
-}
-
-// DecodeVarint reads a varint-encoded integer from the Buffer.
-// This is the format for the
-// int32, int64, uint32, uint64, bool, and enum
-// protocol buffer types.
-func (cb *Buffer) DecodeVarint() (uint64, error) {
-	i := cb.index
-	buf := cb.buf
-
-	if i >= len(buf) {
-		return 0, io.ErrUnexpectedEOF
-	} else if buf[i] < 0x80 {
-		cb.index++
-		return uint64(buf[i]), nil
-	} else if len(buf)-i < 10 {
-		return cb.decodeVarintSlow()
-	}
-
-	var b uint64
-	// we already checked the first byte
-	x := uint64(buf[i]) - 0x80
-	i++
-
-	b = uint64(buf[i])
-	i++
-	x += b << 7
-	if b&0x80 == 0 {
-		goto done
-	}
-	x -= 0x80 << 7
-
-	b = uint64(buf[i])
-	i++
-	x += b << 14
-	if b&0x80 == 0 {
-		goto done
-	}
-	x -= 0x80 << 14
-
-	b = uint64(buf[i])
-	i++
-	x += b << 21
-	if b&0x80 == 0 {
-		goto done
-	}
-	x -= 0x80 << 21
-
-	b = uint64(buf[i])
-	i++
-	x += b << 28
-	if b&0x80 == 0 {
-		goto done
-	}
-	x -= 0x80 << 28
-
-	b = uint64(buf[i])
-	i++
-	x += b << 35
-	if b&0x80 == 0 {
-		goto done
-	}
-	x -= 0x80 << 35
-
-	b = uint64(buf[i])
-	i++
-	x += b << 42
-	if b&0x80 == 0 {
-		goto done
-	}
-	x -= 0x80 << 42
-
-	b = uint64(buf[i])
-	i++
-	x += b << 49
-	if b&0x80 == 0 {
-		goto done
-	}
-	x -= 0x80 << 49
-
-	b = uint64(buf[i])
-	i++
-	x += b << 56
-	if b&0x80 == 0 {
-		goto done
-	}
-	x -= 0x80 << 56
-
-	b = uint64(buf[i])
-	i++
-	x += b << 63
-	if b&0x80 == 0 {
-		goto done
-	}
-	// x -= 0x80 << 63 // Always zero.
-
-	return 0, ErrOverflow
-
-done:
-	cb.index = i
-	return x, nil
 }
 
 // DecodeTagAndWireType decodes a field tag and wire type from input.

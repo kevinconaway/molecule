@@ -44,25 +44,23 @@ func init() {
 // int32, int64, uint32, uint64, bool, and enum
 // protocol buffer types.
 func (cb *Buffer) DecodeVarint() (x uint64, err error) {
-	i := cb.index
-	l := len(cb.buf)
-
-	for shift := uint(0); shift < 64; shift += 7 {
-		if i >= l {
+	for shift := uint(0); ; shift += 7 {
+		if shift >= 64 {
+			err = ErrOverflow
+			return
+		}
+		if cb.index >= cb.len {
 			err = io.ErrUnexpectedEOF
 			return
 		}
-		b := cb.buf[i]
-		i++
+		b := cb.buf[cb.index]
+		cb.index++
 		x |= (uint64(b) & 0x7F) << shift
 		if b < 0x80 {
-			cb.index = i
-			return
+			break
 		}
 	}
 
-	// The number is too large to represent in a 64-bit value.
-	err = ErrOverflow
 	return
 }
 
@@ -93,7 +91,7 @@ func (cb *Buffer) DecodeTagAndWireType() (tag int32, wireType WireType, err erro
 func (cb *Buffer) DecodeFixed64() (x uint64, err error) {
 	// x, err already 0
 	i := cb.index + 8
-	if i < 0 || i > len(cb.buf) {
+	if i < 0 || i > cb.len {
 		err = io.ErrUnexpectedEOF
 		return
 	}
@@ -116,7 +114,7 @@ func (cb *Buffer) DecodeFixed64() (x uint64, err error) {
 func (cb *Buffer) DecodeFixed32() (x uint64, err error) {
 	// x, err already 0
 	i := cb.index + 4
-	if i < 0 || i > len(cb.buf) {
+	if i < 0 || i > cb.len {
 		err = io.ErrUnexpectedEOF
 		return
 	}
@@ -155,7 +153,7 @@ func (cb *Buffer) DecodeRawBytes(alloc bool) (buf []byte, err error) {
 		return nil, fmt.Errorf("proto: bad byte length %d", nb)
 	}
 	end := cb.index + nb
-	if end < cb.index || end > len(cb.buf) {
+	if end < cb.index || end > cb.len {
 		return nil, io.ErrUnexpectedEOF
 	}
 
